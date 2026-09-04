@@ -1,12 +1,17 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from flask_socketio import SocketIO, emit, join_room, leave_room
 import jwt
 import os
 import time
+from functools import wraps
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET', 'change_me')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'change_me')
+
+# Admin credentials (default as requested)
+ADMIN_USER = os.environ.get('ADMIN_USER', 'admin')
+ADMIN_PASS = os.environ.get('ADMIN_PASS', 'admin123')
 
 socketio = SocketIO(app, cors_allowed_origins='*')
 
@@ -14,19 +19,55 @@ socketio = SocketIO(app, cors_allowed_origins='*')
 devices = {}
 
 # --------------------------------------------------
+# Helpers
+# --------------------------------------------------
+
+def admin_required(f):
+    @wraps(f)
+    def wrapped(*args, **kwargs):
+        if not session.get('admin'):
+            return redirect(url_for('login', next=request.path))
+        return f(*args, **kwargs)
+    return wrapped
+
+# --------------------------------------------------
 # Web pages
 # --------------------------------------------------
 @app.route('/')
+@admin_required
 def index():
     return render_template('index.html')
 
 @app.route('/devices')
+@admin_required
 def devices_page():
     return render_template('devices.html')
 
 @app.route('/device/<device_id>')
+@admin_required
 def device_page(device_id):
     return render_template('device.html', device_id=device_id)
+
+# Login / logout
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'GET':
+        return render_template('login.html')
+    form = request.form
+    username = form.get('username')
+    password = form.get('password')
+    next_url = request.args.get('next') or url_for('index')
+    if username == ADMIN_USER and password == ADMIN_PASS:
+        session['admin'] = True
+        session['admin_user'] = username
+        return redirect(next_url)
+    return render_template('login.html', error='Credenciais inválidas')
+
+@app.route('/logout')
+def logout():
+    session.pop('admin', None)
+    session.pop('admin_user', None)
+    return redirect(url_for('login'))
 
 # --------------------------------------------------
 # API endpoints
@@ -45,6 +86,7 @@ def api_register():
     return jsonify({'deviceToken': token})
 
 @app.route('/api/devices', methods=['GET'])
+@admin_required
 def api_list_devices():
     # Return list of known devices with online status
     out = []
@@ -53,6 +95,7 @@ def api_list_devices():
     return jsonify(out)
 
 @app.route('/api/devices/<device_id>/command', methods=['POST'])
+@admin_required
 def api_send_command(device_id):
     body = request.get_json() or {}
     allowed = ['PING', 'REQUEST_STATUS', 'UPLOAD_LOGS']
@@ -65,6 +108,11 @@ def api_send_command(device_id):
         return jsonify({'error':'device offline'}), 404
     socketio.emit('command', {'type': cmd_type, 'data': data}, room=info['socket_sid'])
     return jsonify({'sent': True})
+
+# Health
+@app.route('/health')
+def health():
+    return 'ok'
 
 # --------------------------------------------------
 # Socket.IO handlers (devices connect here)
