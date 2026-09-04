@@ -171,5 +171,10 @@ if __name__ == '__main__':
     # Bind to 0.0.0.0:80 as requested
     port = int(os.environ.get('PORT', 80))
     print(f"Starting Flask SocketIO server on 0.0.0.0:{port} (async_mode=threading)")
-    # Use threading async mode to avoid eventlet/gevent native deps
-    socketio.run(app, host='0.0.0.0', port=port)
+    # Try normal run first; if Werkzeug safety check blocks, retry allowing unsafe werkzeug
+    try:
+        socketio.run(app, host='0.0.0.0', port=port)
+    except RuntimeError as e:
+        print('Werkzeug safety check blocked run():', e)
+        print('Retrying with allow_unsafe_werkzeug=True')
+        socketio.run(app, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
