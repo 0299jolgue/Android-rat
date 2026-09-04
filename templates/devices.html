@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2>Dispositivos</h2>
+  <p>Lista e gestão básica.</p>
+  <button id="refresh">Atualizar</button>
+  <table id="table" border="1">
+    <thead><tr><th>Device ID</th><th>Nome</th><th>Online</th><th>Ações</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    async function load(){
+      const res = await fetch('/api/devices');
+      const list = await res.json();
+      const tbody = document.querySelector('#table tbody');
+      tbody.innerHTML = '';
+      list.forEach(d=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${d.deviceId}</td><td>${d.meta.name||''}</td><td>${d.online}</td><td><button onclick="send('${d.deviceId}','PING')">PING</button> <a href='/device/${d.deviceId}'>Detalhes</a></td>`;
+        tbody.appendChild(tr);
+      });
+    }
+    async function send(id, type){
+      await fetch(`/api/devices/${id}/command`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({type})});
+      alert('comando enviado');
+    }
+    document.getElementById('refresh').addEventListener('click', load);
+    load();
+  </script>
+{% endblock %}

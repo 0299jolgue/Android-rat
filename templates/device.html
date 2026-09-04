@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2>Dispositivo {{ device_id }}</h2>
+  <p>ID: {{ device_id }}</p>
+  <button onclick="send('REQUEST_STATUS')">Pedir status</button>
+  <button onclick="send('UPLOAD_LOGS')">Pedir logs</button>
+  <pre id="log"></pre>
+
+  <script>
+    const deviceId = '{{ device_id }}';
+    async function send(type){
+      await fetch(`/api/devices/${deviceId}/command`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({type})});
+      appendLog('Comando enviado: '+type);
+    }
+    function appendLog(s){
+      const p = document.getElementById('log');
+      p.textContent = s + "\n" + p.textContent;
+    }
+
+    // Simple WS client for admin events
+    const s = new WebSocket("ws://"+location.host+"/socket.io/?EIO=4&transport=websocket");
+    s.addEventListener('message', (ev)=>{ console.log('ws', ev.data); appendLog(ev.data); });
+  </script>
+{% endblock %}

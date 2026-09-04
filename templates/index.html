@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2>Bem-vindo</h2>
+  <p>Painel de administração mínima. Lista de dispositivos e ações básicas.</p>
+  <section>
+    <button id="refresh">Atualizar dispositivos</button>
+    <ul id="devices"></ul>
+  </section>
+
+  <script>
+    async function fetchDevices(){
+      const res = await fetch('/api/devices');
+      const list = await res.json();
+      const ul = document.getElementById('devices');
+      ul.innerHTML = '';
+      list.forEach(d => {
+        const li = document.createElement('li');
+        li.innerHTML = `${d.deviceId} - ${d.meta.name || 'sem nome'} - online: ${d.online} <a href='/device/${d.deviceId}'>ver</a>`;
+        ul.appendChild(li);
+      });
+    }
+    document.getElementById('refresh').addEventListener('click', fetchDevices);
+    fetchDevices();
+  </script>
+{% endblock %}
