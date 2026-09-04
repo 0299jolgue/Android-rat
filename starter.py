@@ -13,7 +13,8 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'change_me')
 ADMIN_USER = os.environ.get('ADMIN_USER', 'admin')
 ADMIN_PASS = os.environ.get('ADMIN_PASS', 'admin123')
 
-socketio = SocketIO(app, cors_allowed_origins='*')
+# Use threading mode to avoid requiring eventlet/gevent native extensions
+socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading')
 
 # In-memory device registry: deviceId -> {socket_sid, last_seen, meta}
 devices = {}
@@ -23,6 +24,7 @@ devices = {}
 # --------------------------------------------------
 
 def admin_required(f):
+    from functools import wraps
     @wraps(f)
     def wrapped(*args, **kwargs):
         if not session.get('admin'):
@@ -168,6 +170,6 @@ def on_response(msg):
 if __name__ == '__main__':
     # Bind to 0.0.0.0:80 as requested
     port = int(os.environ.get('PORT', 80))
-    print(f"Starting Flask SocketIO server on 0.0.0.0:{port}")
-    # eventlet recommended for production when using Flask-SocketIO
+    print(f"Starting Flask SocketIO server on 0.0.0.0:{port} (async_mode=threading)")
+    # Use threading async mode to avoid eventlet/gevent native deps
     socketio.run(app, host='0.0.0.0', port=port)
