@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    image: android-rat-dashboard:latest
+    ports:
+      - "80:80"
+    environment:
+      - JWT_SECRET=${JWT_SECRET}
+      - FLASK_SECRET=${FLASK_SECRET}
+      - ADMIN_USER=${ADMIN_USER}
+      - ADMIN_PASS=${ADMIN_PASS}
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
